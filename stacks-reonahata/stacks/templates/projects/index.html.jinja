@@ -1,0 +1,17 @@
+{% extends 'base.html.jinja' %}
+
+{% block title %}
+プロジェクト一覧
+{% endblock %}
+
+{% block header %}
+  <h1>プロジェクト一覧</h1>
+{% endblock %}
+
+{% block content %}
+  <ul>
+    {% for pj in projects %}
+      <li><a href="{{ url_for('projects.show', url_name=pj.url_name) }}">{{ pj.name }}</a></li>
+    {% endfor %}
+  </ul>
+{% endblock %}

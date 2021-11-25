@@ -1,0 +1,90 @@
+version: "3.7"
+
+services:
+  # Web アプリ
+  web:
+    depends_on:
+      - db
+    build: .
+    init: true
+    stdin_open: true
+    tty: true
+    ports:
+      - "5000:5000"
+    volumes:
+      - .:/flask2-seed
+    environment:
+      - FLASK_ENV=development
+      - FLASK_APP=stacks
+      - DATABASE_URL=postgresql+pg8000://postgres:${POSTGRES_PASSWORD}@db/flask2-seed_development
+
+  # DB サーバー
+  db:
+    image: postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=flask2-seed_development
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  # テスト用 Web アプリ
+  web_test:
+    depends_on:
+      - db_test
+    build: .
+    init: true
+    stdin_open: true
+    tty: true
+    ports:
+      - "5001:5000"
+    volumes:
+      - .:/flask2-seed
+    environment:
+      - FLASK_ENV=development
+      - FLASK_APP=stacks
+      - DATABASE_URL=postgresql+pg8000://postgres:${POSTGRES_PASSWORD}@db_test:5433/flask2-seed_test
+
+  # テスト用 DB サーバー
+  db_test:
+    image: postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=flask2-seed_test
+    volumes:
+      - db_test_data:/var/lib/postgresql/data
+    command: -p 5433
+
+  # E2E テスト
+  e2e:
+    depends_on:
+      - web_test
+      - db_test
+      - selenium_chrome
+    build: .
+    init: true
+    stdin_open: true
+    tty: true
+    volumes:
+      - .:/flask2-seed
+    environment:
+      - FLASK_ENV=development
+      - FLASK_APP=stacks
+      - DATABASE_URL=postgresql+pg8000://postgres:${POSTGRES_PASSWORD}@db_test:5433/flask2-seed_test
+    # selenium_chrome の readiness を待つ
+    entrypoint: /flask2-seed/docker-entrypoint-e2e.sh
+
+  # E2E テスト用 Selenium サーバー
+  selenium_chrome:
+    # M1 Mac でも動くように seleniarm イメージを使う
+    image: seleniarm/standalone-chromium:4.0.0-beta-1-20210215
+    logging:
+      driver: none
+    ports:
+      - "4444:4444" # Selenium クライアントからアクセスするポート
+      - "5900:5900" # VNC クライアントからアクセスするポート
+volumes:
+  # DB の格納先
+  db_data:
+  db_test_data:
